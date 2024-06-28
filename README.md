@@ -26,7 +26,7 @@ By running this script, you can:
 
     Confirm the presence of OOB interaction vulnerabilities.
     Discover internal IP addresses and network configurations.
-    Potentially use the server as a pivot point for further attacks.
+    Potentially use the server as a pivot point for further testing.
 
 Disclaimer
 
